@@ -11,7 +11,6 @@ import { EditorView, Decoration } from '@codemirror/view';
 import { Disposable, CompositeDisposable } from 'event-kit';
 import { notify } from './utils';
 import { processContent } from './snippetContent';
-import { keystrokeForKeyboardEvent } from './keystroke';
 
 // Carries a fresh set of placeholder ranges (relative to the document at the time of
 // dispatch) into placeholderField whenever a snippet is inserted.
@@ -171,37 +170,11 @@ export class Editor extends Disposable {
           }
 
           // If the callback returns false (e.g. there's no snippet trigger or
-          // placeholder to act on), let Tab/Shift-Tab fall through to whatever other
-          // binding exists for this keystroke on this target (e.g. `editor:indent`)
-          // instead of swallowing the keypress. v6's KeymapManager doesn't expose
-          // `findMatchCandidates`/`keystrokeForKeyboardEvent`/`findExactMatches`, so
-          // this reimplements the matching using the still-public `findKeyBindings`.
-          if (!(event.originalEvent instanceof KeyboardEvent)) {
-            return;
-          }
-
-          const keyboardEvent = event.originalEvent;
-          const keystrokes = keystrokeForKeyboardEvent(keyboardEvent);
-
-          // keystrokeForKeyboardEvent returns null for modifier-only keypresses (e.g.
-          // pressing just Shift); there's no keystroke to look up a fallback binding for.
-          if (keystrokes === null) {
-            return;
-          }
-
-          const candidates = inkdrop.keymaps
-            .findKeyBindings({ keystrokes, target: keyboardEvent.target })
-            .filter(binding => binding.command !== command);
-
-          // Only dispatch when the fallback is unambiguous. findKeyBindings/
-          // getKeyBindings document no ordering guarantee for equally-specific
-          // bindings, so picking candidates[0] when there are several would risk
-          // firing the wrong one; safer to no-op.
-          if (candidates.length === 1) {
-            const binding = candidates[0];
-            const elem = document.querySelector(binding.selector) || targetElem;
-            inkdrop.commands.dispatch(elem, binding.command);
-          }
+          // placeholder to act on), abort this binding so the keymap's own cascade
+          // takes over and dispatches whatever other binding exists for this
+          // keystroke on this target (e.g. `editor:indent`), instead of swallowing
+          // the keypress.
+          event.abortKeyBinding();
         },
       }),
     );
