@@ -22,25 +22,31 @@ export function activate() {
   subscriptions = new CompositeDisposable();
 
   const activeEditor = inkdrop.getActiveEditor();
-  if (activeEditor !== undefined) {
-    editor = new Editor(activeEditor.cm, database);
+  if (activeEditor != null) {
+    editor = new Editor(activeEditor, database);
   } else {
     subscriptions.add(
       inkdrop.onEditorLoad(e => {
-        editor = new Editor(e.cm, database);
+        editor = new Editor(e, database);
       }),
     );
   }
 
   subscriptions.add(
     inkdrop.onEditorUnload(() => {
-      editor.dispose();
+      if (editor !== null) {
+        editor.dispose();
+      }
     }),
   );
 }
 
 export function deactivate() {
   database.dispose();
-  editor.dispose();
+  // `editor` is only assigned once an editor is actually loaded/active; if the plugin
+  // is deactivated before that happens (e.g. no note was ever opened), it's still null.
+  if (editor !== null) {
+    editor.dispose();
+  }
   subscriptions.dispose();
 }
