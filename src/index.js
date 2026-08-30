@@ -41,6 +41,7 @@ export function activate() {
     inkdrop.onEditorUnload(() => {
       if (editor !== null) {
         editor.dispose();
+        editor = null;
       }
     }),
   );
